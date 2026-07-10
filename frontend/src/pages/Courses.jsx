@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { api } from "../lib/api";
-import CourseCard from "../components/CourseCard";
+import CourseCard from "../Components/CourseCard";
 import { Search, X, BookOpen, SlidersHorizontal } from "lucide-react";
 
 const CATS = ["All", "Programming", "Data Science", "Soft Skills", "Design"];

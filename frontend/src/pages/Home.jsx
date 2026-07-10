@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { ArrowRight, Sparkles, Flame, BookOpen, Trophy } from "lucide-react";
-import CourseCard from "../components/CourseCard";
+import CourseCard from "../Components/CourseCard";
 
 const HERO_IMG = "https://static.prod-images.emergentagent.com/jobs/1bb0b3f7-2fe1-41c1-a7d6-df7fb9557549/images/50bcc641de200464c447da9763ec3ebc358e1498261c46002295c1bbf11efb30.png";
 
