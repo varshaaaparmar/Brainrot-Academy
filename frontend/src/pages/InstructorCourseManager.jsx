@@ -188,10 +188,10 @@ function CourseForm({ mentors, initial, onClose, onSave }) {
             <div className="space-y-3">
               {form.lessons.map((l, i) => (
                 <div key={i} className="p-3 border-2 border-black">
-                  <div className="flex justify-between gap-2 mb-2">
-                    <input required placeholder={`Lesson ${i + 1} title`} className="brutal-input" value={l.title} onChange={(e) => setLesson(i, "title", e.target.value)} data-testid={`form-lesson-title-${i}`} />
-                    <input type="number" min={1} className="brutal-input w-24" value={l.duration_min} onChange={(e) => setLesson(i, "duration_min", e.target.value)} data-testid={`form-lesson-duration-${i}`} />
-                    <button type="button" onClick={() => rmLesson(i)} className="brutal-btn"><Trash2 size={14} /></button>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    <input required placeholder={`Lesson ${i + 1} title`} className="brutal-input flex-1 min-w-[140px]" value={l.title} onChange={(e) => setLesson(i, "title", e.target.value)} data-testid={`form-lesson-title-${i}`} />
+                    <input type="number" min={1} className="brutal-input w-24 shrink-0" value={l.duration_min} onChange={(e) => setLesson(i, "duration_min", e.target.value)} data-testid={`form-lesson-duration-${i}`} />
+                    <button type="button" onClick={() => rmLesson(i)} className="brutal-btn shrink-0"><Trash2 size={14} /></button>
                   </div>
                   <textarea required rows={2} placeholder="Lesson content" className="brutal-input" value={l.content} onChange={(e) => setLesson(i, "content", e.target.value)} data-testid={`form-lesson-content-${i}`} />
                 </div>

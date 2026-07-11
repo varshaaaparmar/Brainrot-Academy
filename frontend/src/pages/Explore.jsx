@@ -134,7 +134,7 @@ function PostCard({ post, onLike, user, reload, tilt }) {
           {user ? (
             <div className="flex gap-2">
               <input
-                className="brutal-input text-sm py-1.5"
+                className="brutal-input text-sm py-1.5 flex-1 min-w-0"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && comment()}

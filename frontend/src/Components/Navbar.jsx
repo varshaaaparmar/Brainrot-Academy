@@ -88,7 +88,7 @@ export default function Navbar() {
               </Link>
               <Link
                 to="/register"
-                className="brutal-btn brutal-btn--red text-sm py-2 px-3 hidden sm:inline-flex"
+                className="brutal-btn brutal-btn--red text-sm py-2 px-3 hidden md:inline-flex"
                 data-testid="nav-signup-btn"
               >
                 <Sparkles size={14} /> Start free
@@ -99,7 +99,7 @@ export default function Navbar() {
           {user && (
             <>
               {/* User badge */}
-              <div className="hidden sm:flex items-center gap-0 border-2 border-black overflow-hidden">
+              <div className="hidden md:flex items-center gap-0 border-2 border-black overflow-hidden">
                 <div className="px-2 py-1 bg-[#FFE785] border-r-2 border-black">
                   <span className="font-mono text-xs uppercase tracking-widest" data-testid="nav-user-role">
                     {user.role}
@@ -116,7 +116,7 @@ export default function Navbar() {
                 data-testid="nav-logout-btn"
               >
                 <LogOut size={14} />
-                <span className="hidden sm:inline">Logout</span>
+                <span className="hidden md:inline">Logout</span>
               </button>
             </>
           )}

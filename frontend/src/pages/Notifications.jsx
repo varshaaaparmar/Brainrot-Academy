@@ -88,7 +88,7 @@ function NotifItem({ notif, onRead, onDelete }) {
 
         <p className="mt-1 text-sm font-medium leading-snug">{notif.message}</p>
 
-        <div className="flex gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex gap-2 mt-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
           {unread && (
             <button
               onClick={() => onRead(notif.id)}
