@@ -41,7 +41,10 @@ app.add_middleware(
 
 @app.get("/api/")
 async def root():
-    return {"app": "LearnHero", "status": "ok"}
+    return {"app": "Brainrot-Academy", 
+            "status": "ok",
+            "message": "Brainrot-Academy API is running successfully!!"
+            }
 
 
 app.include_router(auth_router)
