@@ -6,8 +6,8 @@ The idea started from a pretty simple frustration: most LMS platforms feel steri
 
 ## Live Demo
 
-- Frontend: coming soon
-- Backend API: coming soon
+- Frontend: https://brainrot-academy-theta.vercel.app
+- Backend API: https://brainrot-academy.onrender.com
 
 ## Features
 
