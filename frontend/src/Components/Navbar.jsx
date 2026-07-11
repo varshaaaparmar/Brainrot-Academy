@@ -46,15 +46,17 @@ export default function Navbar() {
         scrolled ? "shadow-[0_4px_0_0_#0A0A0A]" : ""
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4">
 
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 shrink-0" data-testid="nav-logo">
-          <div className="w-9 h-9 bg-black text-white flex items-center justify-center border-2 border-black">
-            <GraduationCap size={18} />
+        <Link to="/" className="flex items-center gap-1.5 sm:gap-2 shrink-0 min-w-0" data-testid="nav-logo">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 bg-black text-white flex items-center justify-center border-2 border-black shrink-0">
+            <GraduationCap size={16} className="sm:w-[18px] sm:h-[18px]" />
           </div>
-          <div className="font-display font-extrabold text-2xl leading-none">
-            Brainrot Academy<span className="text-[#FF2E00]">.</span>
+          <div className="font-display font-extrabold leading-none whitespace-nowrap text-[clamp(1rem,4vw,1.5rem)]">
+            <span className="hidden xs:inline">Brainrot Academy</span>
+            <span className="xs:hidden">Brainrot</span>
+            <span className="text-[#FF2E00]">.</span>
           </div>
         </Link>
 
@@ -80,15 +82,19 @@ export default function Navbar() {
         </nav>
 
         {/* Right side */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {!user && (
             <>
-              <Link to="/login" className="brutal-btn text-sm py-2 px-3" data-testid="nav-login-btn">
+              <Link
+                to="/login"
+                className="brutal-btn text-xs sm:text-sm py-2 px-2.5 sm:px-3 min-h-[44px]"
+                data-testid="nav-login-btn"
+              >
                 Log in
               </Link>
               <Link
                 to="/register"
-                className="brutal-btn brutal-btn--red text-sm py-2 px-3 hidden md:inline-flex"
+                className="brutal-btn brutal-btn--red text-xs sm:text-sm py-2 px-2.5 sm:px-3 min-h-[44px] hidden sm:inline-flex"
                 data-testid="nav-signup-btn"
               >
                 <Sparkles size={14} /> Start free
@@ -112,7 +118,7 @@ export default function Navbar() {
 
               <button
                 onClick={handleLogout}
-                className="brutal-btn text-sm py-2 px-3"
+                className="brutal-btn text-xs sm:text-sm py-2 px-2.5 sm:px-3 min-h-[44px]"
                 data-testid="nav-logout-btn"
               >
                 <LogOut size={14} />
@@ -123,7 +129,7 @@ export default function Navbar() {
 
           {/* Mobile hamburger */}
           <button
-            className="md:hidden brutal-btn p-2"
+            className="md:hidden brutal-btn p-2 min-w-[44px] min-h-[44px]"
             onClick={() => setMenuOpen((o) => !o)}
             aria-label="Toggle menu"
           >
@@ -142,7 +148,7 @@ export default function Navbar() {
                 to={l.to}
                 data-testid={`nav-${l.label.toLowerCase()}`}
                 className={({ isActive }) =>
-                  `flex items-center gap-2 px-5 py-3 font-semibold uppercase tracking-wider text-sm border-b-2 border-black
+                  `flex items-center gap-2 px-5 py-3.5 min-h-[44px] font-semibold uppercase tracking-wider text-sm border-b-2 border-black
                   ${isActive ? "bg-black text-white" : "hover:bg-[#FFE785]"}`
                 }
               >
@@ -156,16 +162,16 @@ export default function Navbar() {
                   <div className="font-mono text-xs uppercase tracking-widest text-neutral-500">{user.role}</div>
                   <div className="font-bold text-sm">{user.name}</div>
                 </div>
-                <button onClick={handleLogout} className="brutal-btn text-xs py-1.5 px-3" data-testid="nav-logout-btn">
+                <button onClick={handleLogout} className="brutal-btn text-xs py-2 px-3 min-h-[44px]" data-testid="nav-logout-btn">
                   <LogOut size={13} /> Logout
                 </button>
               </div>
             )}
 
             {!user && (
-              <div className="px-5 py-3 flex gap-2">
-                <Link to="/login"    className="brutal-btn text-sm flex-1 justify-center" data-testid="nav-login-btn">Log in</Link>
-                <Link to="/register" className="brutal-btn brutal-btn--red text-sm flex-1 justify-center" data-testid="nav-signup-btn">
+              <div className="px-5 py-3 flex flex-col xs:flex-row gap-2">
+                <Link to="/login"    className="brutal-btn text-sm flex-1 justify-center min-h-[44px]" data-testid="nav-login-btn">Log in</Link>
+                <Link to="/register" className="brutal-btn brutal-btn--red text-sm flex-1 justify-center min-h-[44px]" data-testid="nav-signup-btn">
                   <Sparkles size={13} /> Start free
                 </Link>
               </div>
