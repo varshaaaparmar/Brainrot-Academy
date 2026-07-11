@@ -6,6 +6,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { lazy, Suspense, useEffect } from "react";
+import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 
 import { AuthProvider } from "./context/AuthContext";
 
@@ -130,6 +131,7 @@ function App() {
       <AuthProvider>
         <ScrollToTop />
         <Shell />
+        <VercelAnalytics />
       </AuthProvider>
     </BrowserRouter>
   );
