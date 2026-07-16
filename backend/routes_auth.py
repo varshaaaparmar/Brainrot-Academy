@@ -65,7 +65,7 @@ async def register(payload: RegisterIn, request: Request, response: Response):
     await db.users.insert_one(user_doc)
     token = create_access_token(user_doc["user_id"], email)
     _set_jwt_cookie(response, token)
-    return _user_public(user_doc)
+    return {**_user_public(user_doc), "token": token}
 
 
 @router.post("/login")
@@ -77,7 +77,7 @@ async def login(payload: LoginIn, request: Request, response: Response):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = create_access_token(user["user_id"], email)
     _set_jwt_cookie(response, token)
-    return _user_public(user)
+    return {**_user_public(user), "token": token}
 
 
 @router.post("/logout")
@@ -197,7 +197,7 @@ async def google_callback(request: Request, code: str = "", state: str = "", err
         user["avatar_url"] = picture
 
     jwt_token = create_access_token(user["user_id"], email)
-    redirect = RedirectResponse(url=f"{frontend_url}/dashboard")
+    redirect = RedirectResponse(url=f"{frontend_url}/auth/callback#token={jwt_token}")
     _set_jwt_cookie(redirect, jwt_token)
     redirect.delete_cookie("oauth_state", path="/")
     return redirect

@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../lib/api";
+import { setToken } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 
 export default function AuthCallback() {
   const nav = useNavigate();
-  const { setUser } = useAuth();
+  const { refresh } = useAuth();
   const processed = useRef(false);
 
   useEffect(() => {
@@ -13,21 +13,17 @@ export default function AuthCallback() {
     processed.current = true;
 
     const hash = window.location.hash || "";
-    const m = hash.match(/session_id=([^&]+)/);
-    if (!m) { nav("/login"); return; }
-    const sessionId = m[1];
+    const m = hash.match(/token=([^&]+)/);
+    if (!m) { nav("/login", { replace: true }); return; }
+    const token = decodeURIComponent(m[1]);
 
     (async () => {
-      try {
-        const { data } = await api.post("/auth/google/session", null, { headers: { "X-Session-ID": sessionId } });
-        setUser(data);
-        window.history.replaceState(null, "", "/dashboard");
-        nav("/dashboard", { replace: true });
-      } catch {
-        nav("/login", { replace: true });
-      }
+      setToken(token);
+      window.history.replaceState(null, "", "/dashboard");
+      await refresh();
+      nav("/dashboard", { replace: true });
     })();
-  }, [nav, setUser]);
+  }, [nav, refresh]);
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center">

@@ -1,4 +1,4 @@
-import { api, formatApiError } from "../lib/api";
+import { api, formatApiError, setToken, getToken } from "../lib/api";
 import {
   createContext,
   useCallback,
@@ -25,8 +25,14 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    // Skip /me check if returning from OAuth (let AuthCallback handle)
-    if (window.location.hash?.includes("session_id=")) {
+    // Skip /me check if returning from Google OAuth (AuthCallback handles this
+    // hash instead, storing the token before anything else runs).
+    if (window.location.hash?.includes("token=")) {
+      setLoading(false);
+      return;
+    }
+    // Nothing to check against if we have no token and no domain-matching cookie.
+    if (!getToken()) {
       setLoading(false);
       return;
     }
@@ -36,6 +42,7 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     try {
       const { data } = await api.post("/auth/login", { email, password });
+      setToken(data.token);
       setUser(data);
       return { ok: true };
     } catch (e) {
@@ -46,6 +53,7 @@ export function AuthProvider({ children }) {
   const register = async (payload) => {
     try {
       const { data } = await api.post("/auth/register", payload);
+      setToken(data.token);
       setUser(data);
       return { ok: true };
     } catch (e) {
@@ -55,6 +63,7 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try { await api.post("/auth/logout"); } catch {}
+    setToken(null);
     setUser(null);
   };
 
