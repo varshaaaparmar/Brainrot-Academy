@@ -2,6 +2,7 @@ import os
 import httpx
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Request, Response, HTTPException, Depends
+from fastapi.responses import RedirectResponse
 from auth import hash_password, verify_password, create_access_token, get_current_user
 from models import RegisterIn, LoginIn, gen_id
 
@@ -97,33 +98,93 @@ async def me(user: dict = Depends(get_current_user)):
     return _user_public(user)
 
 
-@router.post("/google/session")
-async def google_session(request: Request, response: Response):
-    """Exchange Emergent session_id (from URL fragment) for a backend session_token."""
-    session_id = request.headers.get("X-Session-ID")
-    if not session_id:
-        raise HTTPException(status_code=400, detail="Missing X-Session-ID")
-    db = request.app.state.db
-    # REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
+
+
+@router.get("/google/login")
+async def google_login(response: Response):
+    """Redirect the browser to Google's consent screen."""
+    import secrets
+    from urllib.parse import urlencode
+
+    client_id = os.environ["GOOGLE_CLIENT_ID"]
+    redirect_uri = os.environ["GOOGLE_REDIRECT_URI"]
+
+    state = secrets.token_urlsafe(24)
+    params = {
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "access_type": "online",
+        "prompt": "select_account",
+    }
+    url = f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
+
+    redirect = RedirectResponse(url=url)
+    # short-lived state cookie for CSRF protection, checked in the callback
+    redirect.set_cookie(
+        key="oauth_state",
+        value=state,
+        httponly=True,
+        secure=_secure_cookies(),
+        samesite="lax",
+        max_age=600,
+        path="/",
+    )
+    return redirect
+
+
+@router.get("/google/callback")
+async def google_callback(request: Request, code: str = "", state: str = "", error: str = ""):
+    """Google redirects here with ?code=...&state=... after the user approves access."""
+    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+
+    if error or not code:
+        return RedirectResponse(url=f"{frontend_url}/login?error=google_auth_failed")
+
+    expected_state = request.cookies.get("oauth_state")
+    if not expected_state or state != expected_state:
+        return RedirectResponse(url=f"{frontend_url}/login?error=invalid_state")
+
+    client_id = os.environ["GOOGLE_CLIENT_ID"]
+    client_secret = os.environ["GOOGLE_CLIENT_SECRET"]
+    redirect_uri = os.environ["GOOGLE_REDIRECT_URI"]
+
     async with httpx.AsyncClient(timeout=15) as c:
-        r = await c.get(
-            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
-            headers={"X-Session-ID": session_id},
+        token_resp = await c.post(GOOGLE_TOKEN_URL, data={
+            "code": code,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "redirect_uri": redirect_uri,
+            "grant_type": "authorization_code",
+        })
+        if token_resp.status_code != 200:
+            return RedirectResponse(url=f"{frontend_url}/login?error=google_token_exchange_failed")
+        tokens = token_resp.json()
+
+        userinfo_resp = await c.get(
+            GOOGLE_USERINFO_URL,
+            headers={"Authorization": f"Bearer {tokens['access_token']}"},
         )
-    if r.status_code != 200:
-        raise HTTPException(status_code=401, detail="Invalid session")
-    data = r.json()
-    email = data["email"].lower().strip()
-    name = data.get("name") or email.split("@")[0]
-    picture = data.get("picture") or ""
-    session_token = data["session_token"]
+        if userinfo_resp.status_code != 200:
+            return RedirectResponse(url=f"{frontend_url}/login?error=google_userinfo_failed")
+        profile = userinfo_resp.json()
+
+    db = request.app.state.db
+    email = profile["email"].lower().strip()
+    name = profile.get("name") or email.split("@")[0]
+    picture = profile.get("picture") or ""
 
     user = await db.users.find_one({"email": email})
     if not user:
         user = {
             "user_id": gen_id("user"),
             "email": email,
-            "password_hash": "",  # google user, no password
+            "password_hash": "",  # google user, no password login
             "name": name,
             "role": "student",
             "bio": "",
@@ -131,22 +192,12 @@ async def google_session(request: Request, response: Response):
             "created_at": datetime.now(timezone.utc),
         }
         await db.users.insert_one(user)
-    else:
-        # update avatar if missing
-        if not user.get("avatar_url") and picture:
-            await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"avatar_url": picture}})
-            user["avatar_url"] = picture
+    elif not user.get("avatar_url") and picture:
+        await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"avatar_url": picture}})
+        user["avatar_url"] = picture
 
-    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-    await db.user_sessions.update_one(
-        {"session_token": session_token},
-        {"$set": {
-            "session_token": session_token,
-            "user_id": user["user_id"],
-            "expires_at": expires_at,
-            "created_at": datetime.now(timezone.utc),
-        }},
-        upsert=True,
-    )
-    _set_session_cookie(response, session_token)
-    return _user_public(user)
+    jwt_token = create_access_token(user["user_id"], email)
+    redirect = RedirectResponse(url=f"{frontend_url}/dashboard")
+    _set_jwt_cookie(redirect, jwt_token)
+    redirect.delete_cookie("oauth_state", path="/")
+    return redirect
