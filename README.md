@@ -162,12 +162,13 @@ Still actively working on this one.
 - Course management
 - Community section
 - Certificates
+- AI mentor
 
 **On the roadmap:**
 - Richer learning content
 - Video streaming
 - Assignments
-- AI mentor
+
 
 ## Author
 

@@ -1,4 +1,6 @@
 import os
+import logging
+import httpx
 from datetime import datetime, timezone
 from fastapi import APIRouter, Request, HTTPException, Depends
 from typing import Optional
@@ -363,5 +365,68 @@ async def delete_notification(notification_id: str, request: Request, user: dict
 
 
 @router.post("/mentor/ask")
-async def mentor_ask_disabled():
-    raise HTTPException(503, "Mentor chat is not configured. Set up an LLM provider before enabling this feature.")
+async def mentor_ask(payload: MentorAskIn, request: Request, user: dict = Depends(get_current_user)):
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(503, "Mentor chat is not configured. Set GEMINI_API_KEY to enable this feature.")
+
+    db = request.app.state.db
+    mentor = await db.mentors.find_one({"mentor_id": payload.mentor_id}, {"_id": 0})
+    if not mentor:
+        raise HTTPException(404, "Mentor not found")
+
+    question = payload.question.strip()
+    if not question:
+        raise HTTPException(400, "Question cannot be empty")
+    if len(question) > 1000:
+        raise HTTPException(400, "Question is too long (max 1000 characters)")
+
+    # Pull in lesson context if the student asked from within a specific lesson
+    context = ""
+    if payload.course_id and payload.lesson_id:
+        course = await db.courses.find_one({"course_id": payload.course_id}, {"_id": 0})
+        if course:
+            lesson = next((l for l in course.get("lessons", []) if l["lesson_id"] == payload.lesson_id), None)
+            if lesson:
+                context = (
+                    f"\n\nThe student is currently on the lesson \"{lesson['title']}\" "
+                    f"in the course \"{course['title']}\". Lesson content for context:\n{lesson['content'][:1500]}"
+                )
+
+    model = os.environ.get("MENTOR_MODEL", "gemini-flash-latest")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.post(
+                url,
+                params={"key": api_key},
+                json={
+                    "system_instruction": {"parts": [{"text": mentor["style_prompt"] + context}]},
+                    "contents": [{"role": "user", "parts": [{"text": question}]}],
+                    "generationConfig": {
+                        "maxOutputTokens": 800,
+                        "thinkingConfig": {"thinkingBudget": 0},
+                    },
+                },
+            )
+        if resp.status_code != 200:
+            logging.getLogger("learnhero").error(f"Gemini API error in mentor_ask: {resp.status_code} {resp.text}")
+            raise HTTPException(502, "Mentor is temporarily unavailable. Try again in a moment.")
+
+        data = resp.json()
+        candidates = data.get("candidates") or []
+        parts = candidates[0]["content"]["parts"] if candidates else []
+        reply_text = "".join(p.get("text", "") for p in parts).strip()
+        finish_reason = candidates[0].get("finishReason") if candidates else None
+        if finish_reason == "MAX_TOKENS":
+            logging.getLogger("learnhero").warning("mentor_ask reply hit MAX_TOKENS and may be truncated")
+        if not reply_text:
+            raise HTTPException(502, "Mentor didn't return a response. Try again.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.getLogger("learnhero").error(f"Unexpected error in mentor_ask: {e}")
+        raise HTTPException(500, "Something went wrong while asking the mentor.")
+
+    return {"reply": reply_text}
