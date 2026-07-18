@@ -65,6 +65,9 @@ Works across desktop, tablet, and mobile.
 ### Certificates
 ![Certificates](screenshots/Certificates/Certificates.png)
 
+### AI mentor
+![AI mentor](screenshots/AI_mentor/AI_mentor.png)
+
 
 ## Tech Stack
 
