@@ -161,15 +161,13 @@ Still actively working on this one.
 - Responsive layout
 - Course management
 - Community section
+- Certificates
 
 **On the roadmap:**
 - Richer learning content
 - Video streaming
 - Assignments
-- Live classes
-- Certificates
 - AI mentor
-- Discussion forum
 
 ## Author
 
