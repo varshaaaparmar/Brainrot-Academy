@@ -3,7 +3,7 @@ import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   GraduationCap, LogOut, Sparkles, Menu, X,
-  BookOpen, Compass, LayoutDashboard, BarChart2, Bell,
+  BookOpen, Compass, LayoutDashboard, BarChart2, Bell, Award,
 } from "lucide-react";
 
 export default function Navbar() {
@@ -29,6 +29,7 @@ export default function Navbar() {
     ...(user
       ? [
           { to: "/dashboard",     label: "Dashboard",     icon: <LayoutDashboard size={15} /> },
+          { to: "/certificates",  label: "Certificates",  icon: <Award size={15} /> },
           { to: "/analytics",     label: "Analytics",     icon: <BarChart2 size={15} /> },
           { to: "/notifications", label: "Notifications", icon: <Bell size={15} /> },
         ]

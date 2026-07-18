@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Request, HTTPException, Depends
 from typing import Optional
 from auth import get_current_user
+from routes_certificates import _ensure_certificate
 from models import (
     CourseIn,
     gen_id,
@@ -192,7 +193,12 @@ async def complete_lesson(course_id: str, lesson_id: str, request: Request, user
         "read": False,
         "created_at": datetime.now(timezone.utc),
     })
-    return {"progress": progress, "completed_lessons": list(completed)}
+
+    certificate = None
+    if progress >= 1.0:
+        certificate = await _ensure_certificate(db, user, course)
+
+    return {"progress": progress, "completed_lessons": list(completed), "certificate": certificate}
 
 
 @router.get("/my/enrollments")
@@ -359,42 +365,3 @@ async def delete_notification(notification_id: str, request: Request, user: dict
 @router.post("/mentor/ask")
 async def mentor_ask_disabled():
     raise HTTPException(503, "Mentor chat is not configured. Set up an LLM provider before enabling this feature.")
-
-
-# ---------- AI Mentor (Claude Sonnet 4.5) ----------
-# @router.post("/mentor/ask")
-# async def mentor_ask(payload: MentorAskIn, request: Request, user: dict = Depends(get_current_user)):
-#     db = request.app.state.db
-#     mentor = await db.mentors.find_one({"mentor_id": payload.mentor_id}, {"_id": 0})
-#     if not mentor:
-#         raise HTTPException(404, "Mentor not found")
-
-#     context = ""
-#     if payload.course_id:
-#         course = await db.courses.find_one({"course_id": payload.course_id}, {"_id": 0})
-#         if course:
-#             context = f"\nCourse: {course['title']} — {course['description']}n"
-#             if payload.lesson_id:
-#                 for l in course.get("lessons", []):
-#                     if l["lesson_id"] == payload.lesson_id:
-#                         context += f"Current Lesson: {l['title']} — {l['content']}\n"
-#                         break
-
-#     from emergentintegrations.llm.chat import LlmChat, UserMessage
-#     api_key = os.environ["EMERGENT_LLM_KEY"]
-#     system_msg = mentor["style_prompt"] + (
-#         "\nIf course context is provided, ground your explanation in it. "
-#         "Always end with one motivating line in your voice."
-#     )
-#     chat = LlmChat(
-#         api_key=api_key,
-#         session_id=f"{user['user_id']}_{payload.mentor_id}",
-#         system_message=system_msg,
-#     ).with_model("anthropic", "claude-sonnet-4-5-20250929")
-
-#     prompt = (context + "\nLearner question: " + payload.question).strip()
-#     try:
-#         reply = await chat.send_message(UserMessage(text=prompt))
-#     except Exception as e:
-#         raise HTTPException(502, f"Mentor unavailable: {e}")
-#     return {"mentor": mentor, "reply": reply}

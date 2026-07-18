@@ -96,6 +96,17 @@ class Enrollment(BaseModel):
     enrolled_at: datetime
 
 
+# ---------- Certificates ----------
+class Certificate(BaseModel):
+    certificate_id: str
+    user_id: str
+    course_id: str
+    course_title: str
+    student_name: str
+    instructor_name: str
+    issued_at: datetime
+
+
 # ---------- Explore (slangs + memes) ----------
 class ExplorePostIn(BaseModel):
     kind: str  # \"slang\" | \"meme\"

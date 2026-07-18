@@ -12,6 +12,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from routes_auth import router as auth_router
 from routes_app import router as app_router
+from routes_certificates import router as certificates_router
 from seed import seed_database
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -49,6 +50,7 @@ async def root():
 
 app.include_router(auth_router)
 app.include_router(app_router)
+app.include_router(certificates_router)
 
 
 async def ensure_indexes():
@@ -58,6 +60,7 @@ async def ensure_indexes():
     await db.enrollments.create_index([("user_id", 1), ("course_id", 1)], unique=True)
     await db.user_sessions.create_index("session_token", unique=True)
     await db.notifications.create_index([("user_id", 1), ("created_at", -1)])
+    await db.certificates.create_index([("user_id", 1), ("course_id", 1)], unique=True)
 
 
 @app.on_event("startup")

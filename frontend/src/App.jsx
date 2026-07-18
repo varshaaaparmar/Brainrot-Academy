@@ -28,6 +28,7 @@ const NotFound       = lazy(() => import("./pages/NotFound"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const Analytics      = lazy(() => import("./pages/Analytics"));
 const Notifications  = lazy(() => import("./pages/Notifications"));
+const Certificates    = lazy(() => import("./pages/Certificates"));
 
 /* -----------------------------
    Scroll To Top
@@ -107,6 +108,14 @@ function Shell() {
             element={
               <ProtectedRoute>
                 <Notifications />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/certificates"
+            element={
+              <ProtectedRoute>
+                <Certificates />
               </ProtectedRoute>
             }
           />
