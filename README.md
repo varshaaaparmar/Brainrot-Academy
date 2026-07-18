@@ -62,6 +62,10 @@ Works across desktop, tablet, and mobile.
 ### Explore
 ![Explore](screenshots/explore/Explore.png)
 
+### Certificates
+![Certificates](screenshots/Certificates/Certificates.png)
+
+
 ## Tech Stack
 
 **Frontend:** React, Vite, Tailwind CSS, React Router, Axios, Recharts, Lucide React
