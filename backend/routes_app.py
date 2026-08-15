@@ -12,6 +12,7 @@ from models import (
     ExplorePostIn,
     CommentIn,
     MentorAskIn,
+    MentorNarrateIn,
 )
 
 router = APIRouter(prefix="/api", tags=["app"])
@@ -62,6 +63,7 @@ async def create_course(payload: CourseIn, request: Request, user: dict = Depend
             "title": l.title,
             "content": l.content,
             "duration_min": l.duration_min,
+            "video_url": l.video_url or "",
             "order": idx,
         })
     doc = {
@@ -95,10 +97,11 @@ async def update_course(course_id: str, payload: CourseIn, request: Request, use
     lessons = []
     for idx, l in enumerate(payload.lessons):
         lessons.append({
-            "lesson_id": gen_id("lesson"),
+            "lesson_id": l.lesson_id or gen_id("lesson"),
             "title": l.title,
             "content": l.content,
             "duration_min": l.duration_min,
+            "video_url": l.video_url or "",
             "order": idx,
         })
     update = {
@@ -430,3 +433,81 @@ async def mentor_ask(payload: MentorAskIn, request: Request, user: dict = Depend
         raise HTTPException(500, "Something went wrong while asking the mentor.")
 
     return {"reply": reply_text}
+
+
+@router.post("/mentor/narrate")
+async def mentor_narrate(payload: MentorNarrateIn, request: Request, user: dict = Depends(get_current_user)):
+    """Generates a spoken-style teaching script for a lesson, fully in the
+    mentor's persona. The frontend reads this aloud with the browser's
+    built-in text-to-speech, so it's written for the ear, not the eye:
+    no markdown, no bullet points, conversational sentences only."""
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(503, "Narration is not configured. Set GEMINI_API_KEY to enable this feature.")
+
+    db = request.app.state.db
+    mentor = await db.mentors.find_one({"mentor_id": payload.mentor_id}, {"_id": 0})
+    if not mentor:
+        raise HTTPException(404, "Mentor not found")
+
+    course = await db.courses.find_one({"course_id": payload.course_id}, {"_id": 0})
+    if not course:
+        raise HTTPException(404, "Course not found")
+    lesson = next((l for l in course.get("lessons", []) if l["lesson_id"] == payload.lesson_id), None)
+    if not lesson:
+        raise HTTPException(404, "Lesson not found")
+
+    lesson_title = lesson.get("title") or "This lesson"
+    lesson_content = (lesson.get("content") or "").strip()
+    if not lesson_content:
+        raise HTTPException(400, "This lesson doesn't have any content yet, so there's nothing for the mentor to teach. Add some lesson content first.")
+
+    prompt = (
+        "You are recording a short spoken lesson for a student, fully in character. "
+        "Write ONLY the exact words you would say out loud — nothing else. "
+        "Do not mention formatting, word count, or instructions. Do not write notes to yourself. "
+        "Just speak: start with a brief greeting, then teach the concept below in a warm, "
+        "conversational way, in about 150-220 words.\n\n"
+        f"Lesson title: {lesson_title}\n"
+        f"Lesson content:\n{lesson_content[:2000]}"
+    )
+
+    model = os.environ.get("MENTOR_MODEL", "gemini-flash-latest")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.post(
+                url,
+                params={"key": api_key},
+                json={
+                    "system_instruction": {"parts": [{"text": mentor.get("style_prompt") or "You are a friendly, encouraging tutor."}]},
+                    "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                    "generationConfig": {
+                        "maxOutputTokens": 900,
+                        "thinkingConfig": {"thinkingBudget": 0},
+                    },
+                },
+            )
+        if resp.status_code != 200:
+            logging.getLogger("learnhero").error(f"Gemini API error in mentor_narrate: {resp.status_code} {resp.text}")
+            raise HTTPException(502, "Mentor is temporarily unavailable. Try again in a moment.")
+
+        data = resp.json()
+        candidates = data.get("candidates") or []
+        parts = candidates[0]["content"]["parts"] if candidates else []
+        script_text = "".join(p.get("text", "") for p in parts).strip()
+        finish_reason = candidates[0].get("finishReason") if candidates else None
+        if finish_reason == "MAX_TOKENS":
+            logging.getLogger("learnhero").warning("mentor_narrate script hit MAX_TOKENS and may be truncated")
+        if not script_text:
+            raise HTTPException(502, "Mentor didn't return a script. Try again.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.getLogger("learnhero").error(
+            f"Unexpected error in mentor_narrate: {type(e).__name__}: {e}", exc_info=True
+        )
+        raise HTTPException(500, "Something went wrong while preparing the narration.")
+
+    return {"script": script_text}

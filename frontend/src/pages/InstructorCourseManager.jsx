@@ -106,11 +106,11 @@ function CourseForm({ mentors, initial, onClose, onSave }) {
   const [form, setForm] = useState(initial ? {
     title: initial.title, description: initial.description, category: initial.category,
     level: initial.level, cover_url: initial.cover_url, mentor_id: initial.mentor_id,
-    lessons: initial.lessons.map(({ title, content, duration_min }) => ({ title, content, duration_min })),
+    lessons: initial.lessons.map(({ lesson_id, title, content, duration_min, video_url }) => ({ lesson_id, title, content, duration_min, video_url: video_url || "" })),
   } : {
     title: "", description: "", category: "Programming", level: "Beginner",
     cover_url: "", mentor_id: mentors[0]?.mentor_id || "",
-    lessons: [{ title: "", content: "", duration_min: 10 }],
+    lessons: [{ title: "", content: "", duration_min: 10, video_url: "" }],
   });
 
   const set = (k, v) => setForm({ ...form, [k]: v });
@@ -119,7 +119,7 @@ function CourseForm({ mentors, initial, onClose, onSave }) {
     ls[i] = { ...ls[i], [k]: v };
     set("lessons", ls);
   };
-  const addLesson = () => set("lessons", [...form.lessons, { title: "", content: "", duration_min: 10 }]);
+  const addLesson = () => set("lessons", [...form.lessons, { title: "", content: "", duration_min: 10, video_url: "" }]);
   const rmLesson = (i) => {
   if (form.lessons.length === 1) {
     toast.error("At least one lesson required");
@@ -194,6 +194,13 @@ function CourseForm({ mentors, initial, onClose, onSave }) {
                     <button type="button" onClick={() => rmLesson(i)} className="brutal-btn shrink-0"><Trash2 size={14} /></button>
                   </div>
                   <textarea required rows={2} placeholder="Lesson content" className="brutal-input" value={l.content} onChange={(e) => setLesson(i, "content", e.target.value)} data-testid={`form-lesson-content-${i}`} />
+                  <input
+                    placeholder="Video URL (YouTube, Vimeo, or direct .mp4 link) — optional"
+                    className="brutal-input mt-2"
+                    value={l.video_url}
+                    onChange={(e) => setLesson(i, "video_url", e.target.value)}
+                    data-testid={`form-lesson-video-${i}`}
+                  />
                 </div>
               ))}
             </div>

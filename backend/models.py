@@ -48,9 +48,11 @@ class Mentor(BaseModel):
 
 # ---------- Courses & Lessons ----------
 class LessonIn(BaseModel):
+    lesson_id: Optional[str] = None  # present when editing an existing lesson; absent for new ones
     title: str
     content: str
     duration_min: int = 10
+    video_url: Optional[str] = ""
 
 
 class Lesson(BaseModel):
@@ -59,6 +61,7 @@ class Lesson(BaseModel):
     content: str
     duration_min: int
     order: int
+    video_url: str = ""
 
 
 class CourseIn(BaseModel):
@@ -140,3 +143,9 @@ class MentorAskIn(BaseModel):
     course_id: Optional[str] = ""
     lesson_id: Optional[str] = ""
     question: str
+
+
+class MentorNarrateIn(BaseModel):
+    mentor_id: str
+    course_id: str
+    lesson_id: str

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
@@ -7,6 +7,19 @@ import {
   CheckCircle2, Circle, Play, Sparkles, Send,
   Clock, Users, BarChart2, ChevronRight, Lock
 } from "lucide-react";
+
+/* ── Video embed helper ──
+   Detects YouTube/Vimeo links and converts them to embeddable iframe URLs.
+   Anything else (e.g. a direct .mp4 link from Cloudinary/S3) falls back to
+   a plain <video> tag. */
+function getVideoEmbed(url) {
+  if (!url) return null;
+  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{11})/);
+  if (yt) return { type: "iframe", src: `https://www.youtube.com/embed/${yt[1]}` };
+  const vimeo = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeo) return { type: "iframe", src: `https://player.vimeo.com/video/${vimeo[1]}` };
+  return { type: "video", src: url };
+}
 
 /* ── Skeleton ── */
 function DetailSkeleton() {
@@ -54,6 +67,10 @@ export default function CourseDetail() {
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [completing, setCompleting] = useState(false);
+
+  const [narrating, setNarrating] = useState(false);
+  const [narrationLoading, setNarrationLoading] = useState(false);
+  const [narrationScript, setNarrationScript] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -118,6 +135,49 @@ export default function CourseDetail() {
     } finally {
       setCompleting(false);
     }
+  };
+
+  // Stop any playing narration whenever the active lesson changes or the
+  // page unmounts, so it doesn't keep talking after the student navigates away.
+  useEffect(() => {
+    window.speechSynthesis?.cancel();
+    setNarrating(false);
+    setNarrationScript("");
+    return () => window.speechSynthesis?.cancel();
+  }, [activeLesson]);
+
+  const playNarration = async () => {
+    if (!mentor || !activeLesson) return;
+    if (!("speechSynthesis" in window)) {
+      toast.error("Your browser doesn't support spoken narration");
+      return;
+    }
+    setNarrationLoading(true);
+    try {
+      const { data } = await api.post("/mentor/narrate", {
+        mentor_id: mentor.mentor_id,
+        course_id: id,
+        lesson_id: activeLesson.lesson_id,
+      });
+      setNarrationScript(data.script);
+
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(data.script);
+      utter.rate = 0.98;
+      utter.onstart = () => setNarrating(true);
+      utter.onend = () => setNarrating(false);
+      utter.onerror = () => setNarrating(false);
+      window.speechSynthesis.speak(utter);
+    } catch {
+      toast.error(`${mentor.name} couldn't prepare this lesson right now`);
+    } finally {
+      setNarrationLoading(false);
+    }
+  };
+
+  const stopNarration = () => {
+    window.speechSynthesis?.cancel();
+    setNarrating(false);
   };
 
   const askMentor = async () => {
@@ -325,6 +385,45 @@ export default function CourseDetail() {
 
               <div className="brutal-divider" />
 
+              {activeLesson.video_url && (() => {
+                const embed = getVideoEmbed(activeLesson.video_url);
+                return (
+                  <div className="mb-5">
+                    <div className="border-2 border-black aspect-video overflow-hidden bg-black" data-testid="lesson-video">
+                      {embed.type === "iframe" ? (
+                        <iframe
+                          key={activeLesson.lesson_id}
+                          src={embed.src}
+                          title={activeLesson.title}
+                          className="w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <video
+                          key={activeLesson.lesson_id}
+                          src={embed.src}
+                          controls
+                          preload="metadata"
+                          className="w-full h-full"
+                        />
+                      )}
+                    </div>
+                    {embed.type === "iframe" && (
+                      <a
+                        href={activeLesson.video_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-block font-mono text-xs uppercase tracking-widest text-neutral-500 hover:text-black underline"
+                        data-testid="lesson-video-fallback-link"
+                      >
+                        Video not playing? Watch it directly on YouTube/Vimeo →
+                      </a>
+                    )}
+                  </div>
+                );
+              })()}
+
               <p className="text-neutral-800 leading-relaxed whitespace-pre-line text-[1.05rem]">
                 {activeLesson.content}
               </p>
@@ -366,6 +465,55 @@ export default function CourseDetail() {
                   <button onClick={enroll} className="brutal-btn brutal-btn--red brutal-btn--sm">
                     <Play size={13} /> Enroll free
                   </button>
+                </div>
+              )}
+
+              {/* Mentor narration — the mentor "teaches" this lesson out loud,
+                  in their own persona, using the browser's built-in text-to-speech. */}
+              {mentor && (
+                <div
+                  className="mt-6 p-4 border-2 border-black bg-[#F4F4F4]"
+                  data-testid="mentor-narration"
+                  style={narrating ? { boxShadow: `4px 4px 0px 0px ${mentor.accent}` } : undefined}
+                >
+                  <div className="flex items-center gap-3 flex-wrap justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 border-2 border-black overflow-hidden shrink-0 ${narrating ? "animate-pulse" : ""}`}>
+                        <img src={mentor.avatar_url} alt={mentor.name} className="w-full h-full object-cover" />
+                      </div>
+                      <div>
+                        <div className="font-mono text-xs uppercase tracking-widest text-neutral-500">Spoken lesson</div>
+                        <div className="font-bold text-sm">{mentor.name} explains this</div>
+                      </div>
+                    </div>
+                    {narrating ? (
+                      <button onClick={stopNarration} className="brutal-btn brutal-btn-sm" data-testid="narration-stop-btn">
+                        Stop
+                      </button>
+                    ) : (
+                      <button
+                        onClick={playNarration}
+                        disabled={narrationLoading}
+                        className="brutal-btn brutal-btn--red brutal-btn-sm"
+                        data-testid="narration-play-btn"
+                      >
+                        {narrationLoading ? (
+                          <span className="flex items-center gap-2">
+                            <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Preparing…
+                          </span>
+                        ) : (
+                          <><Play size={13} /> Hear {mentor.name} teach this</>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {narrationScript && (
+                    <p className="mt-3 text-sm leading-relaxed text-neutral-700 whitespace-pre-line">
+                      {narrationScript}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
