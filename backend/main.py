@@ -47,6 +47,9 @@ async def root():
             "message": "Brainrot-Academy API is running successfully!!"
             }
 
+@app.head("/api/")
+async def root_head():
+    return
 
 app.include_router(auth_router)
 app.include_router(app_router)
